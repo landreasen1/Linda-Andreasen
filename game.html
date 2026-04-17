@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trivia Game</title>
+
+    <style>
+        :root {
+            --accent: #5b8def;
+            --accent-light: #eaf1ff;
+            --correct: #2ecc71;
+            --wrong: #e74c3c;
+            --neutral: #f7f9fc;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #eef2ff, #f9fbff);
+        }
+
+        /* Header */
+        header {
+            padding: 80px 20px;
+            text-align: center;
+            background: #5b8def;
+            color: white;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        /* Container */
+        .game-container {
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+
+        /* Score Bar */
+        .score-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        .progress-track {
+            height: 8px;
+            background: #dfe6ff;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #5b8def, #7aa6ff);
+            transition: width 0.4s;
+        }
+
+        /* Card */
+        .question-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+
+        .question-text {
+            font-size: 1.3rem;
+        }
+
+        /* Answers */
+        .answers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 500px) {
+            .answers-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .answer-btn {
+            padding: 12px;
+            border-radius: 12px;
+            border: 2px solid transparent;
+            background: white;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .answer-btn:hover:not(:disabled) {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            transform: scale(1.03);
+        }
+
+        .correct {
+            background: #eafaf1;
+            border-color: var(--correct);
+            color: var(--correct);
+            font-weight: bold;
+        }
+
+        .wrong {
+            background: #fdeaea;
+            border-color: var(--wrong);
+            color: var(--wrong);
+        }
+
+        /* Feedback */
+        .feedback {
+            text-align: center;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+
+        /* Button */
+        .next-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .next-btn:disabled {
+            background: #ccc;
+        }
+
+        /* Results */
+        .results-card {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>🧠 Trivia Challenge</h1>
+    <p>How many can you get right?</p>
+</header>
+
+<div class="game-container">
+
+    <div id="quiz-screen">
+        <div class="score-bar">
+            <div>Question <span id="q-num">1</span>/10</div>
+            <div>Score: <span id="score">0</span></div>
+        </div>
+
+        <div class="progress-track">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+
+        <div class="question-card">
+            <p id="question"></p>
+        </div>
+
+        <div class="answers-grid" id="answers"></div>
+
+        <div class="feedback" id="feedback"></div>
+
+        <button class="next-btn" id="next" onclick="nextQ()" disabled>Next</button>
+    </div>
+
+    <div id="results" class="hidden">
+        <div class="results-card">
+            <h2 id="final-score"></h2>
+            <p id="message"></p>
+            <button onclick="restart()">Play Again</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const questions = [
+    {q:"Capital of France?",a:["Berlin","Madrid","Paris","Rome"],c:2},
+    {q:"Hexagon sides?",a:["5","6","7","8"],c:1},
+    {q:"Red planet?",a:["Venus","Jupiter","Saturn","Mars"],c:3},
+    {q:"Largest ocean?",a:["Atlantic","Indian","Arctic","Pacific"],c:3},
+    {q:"Mona Lisa painter?",a:["Michelangelo","Da Vinci","Raphael","Picasso"],c:1},
+    {q:"Human bones?",a:["186","206","216","226"],c:1},
+    {q:"Gold symbol?",a:["Go","Gd","Au","Ag"],c:2},
+    {q:"Kangaroo country?",a:["NZ","SA","Brazil","Australia"],c:3},
+    {q:"Fastest land animal?",a:["Lion","Cheetah","Greyhound","Pronghorn"],c:1},
+    {q:"Guitar strings?",a:["4","5","6","7"],c:2}
+];
+
+let i=0, score=0, locked=false;
+
+function loadQ(){
+    locked=false;
+    document.getElementById("next").disabled=true;
+    document.getElementById("feedback").textContent="";
+
+    let q=questions[i];
+    document.getElementById("q-num").textContent=i+1;
+    document.getElementById("question").textContent=q.q;
+    document.getElementById("progress").style.width=(i/10*100)+"%";
+
+    let answers=document.getElementById("answers");
+    answers.innerHTML="";
+
+    q.a.forEach((text,idx)=>{
+        let btn=document.createElement("button");
+        btn.className="answer-btn";
+        btn.textContent=text;
+        btn.onclick=()=>choose(idx,q.c,btn);
+        answers.appendChild(btn);
+    });
+}
+
+function choose(sel,correct,btn){
+    if(locked) return;
+    locked=true;
+
+    let buttons=document.querySelectorAll(".answer-btn");
+    buttons.forEach(b=>b.disabled=true);
+
+    if(sel===correct){
+        btn.classList.add("correct");
+        score++;
+        document.getElementById("score").textContent=score;
+        document.getElementById("feedback").textContent="Nice!";
+    } else {
+        btn.classList.add("wrong");
+        buttons[correct].classList.add("correct");
+        document.getElementById("feedback").textContent="Oops!";
+    }
+
+    document.getElementById("next").disabled=false;
+}
+
+function nextQ(){
+    i++;
+    if(i>=questions.length){
+        showResults();
+    } else {
+        loadQ();
+    }
+}
+
+function showResults(){
+    document.getElementById("quiz-screen").classList.add("hidden");
+    document.getElementById("results").classList.remove("hidden");
+
+    document.getElementById("final-score").textContent = score + " / 10";
+
+    let msg = score===10 ? "Perfect!" :
+              score>=7 ? "Great job!" :
+              score>=4 ? "Not bad!" :
+              "Try again!";
+
+    document.getElementById("message").textContent = msg;
+}
+
+function restart(){
+    i=0; score=0;
+    document.getElementById("score").textContent=0;
+    document.getElementById("results").classList.add("hidden");
+    document.getElementById("quiz-screen").classList.remove("hidden");
+    loadQ();
+}
+
+loadQ();
+</script>
+
+</body>
+</html>
